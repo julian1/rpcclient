@@ -1,0 +1,64 @@
+#!/usr/bin/ruby
+
+# Example usage, ./client bts about
+
+require 'net/http'
+require 'uri'
+require 'json'
+
+
+class RPC
+  def initialize(service_url)
+    @uri = URI.parse(service_url)
+  end
+
+  def request(name, args)
+    post_body = { 'method' => name, 'params' => args, 'id' => 'jsonrpc' }.to_json
+
+    resp = JSON.parse( http_post_request(post_body) )
+
+    raise JSONRPCError, resp['error'] if resp['error']
+	resp['result']
+  end
+
+  def http_post_request(post_body)
+    http    = Net::HTTP.new(@uri.host, @uri.port)
+    request = Net::HTTP::Post.new(@uri.request_uri)
+    request.basic_auth @uri.user, @uri.password
+    request.content_type = 'application/json'
+    request.body = post_body
+    http.request(request).body
+  end
+
+  class JSONRPCError < RuntimeError; end
+end
+
+def format_output( response )
+  case response.class.name	
+  when 'String', 'Fixnum', 'Float', 'NilClass'
+  	  response
+  else
+    JSON.pretty_generate( response )
+  end
+end
+
+
+server=ARGV[0]
+method = ARGV[1]
+
+config = JSON.parse( File.read('config.json') )
+conn_string = config[ server ]
+conn = RPC.new( conn_string ) 
+
+args = ARGV.drop(2).map { |x| 
+  if x == 'true' then true 
+  elsif x == 'false' then false
+  elsif x.to_i.to_s == x then x.to_i 
+  elsif x.to_f.to_s == x then x.to_f
+  else x end 
+}
+
+response = conn.request( method, args ) 
+puts format_output( response ) 
+
+

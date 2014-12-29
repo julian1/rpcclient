@@ -1,0 +1,4 @@
+{
+  "bts": "http://test:pass@127.0.0.1:7002/rpc" ,
+  "btc": "http://test:pass@127.0.0.1:7000"
+}
